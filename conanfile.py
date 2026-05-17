@@ -78,6 +78,12 @@ class gbnetConan(ConanFile):
              src=os.path.join(self.source_folder, "src"),
              dst=os.path.join(self.package_folder, "include"),
              keep_path=True)
+
+    def source(self):
+        git = Git(self)
+        # 克隆仓库（使用 tag 或 commit）
+        git.clone(url="https://github.com/wanglei-fenyu/gbnet_conan.git", target=".")
+        git.checkout(f"v{self.version}")   # 假设 tag 是 v1.0.0 
         
     def package_info(self):
         self.cpp_info.libs = ["gbnet"]
