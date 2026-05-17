@@ -73,11 +73,6 @@ class gbnetConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         
-        # 复制头文件
-        copy(self, "*.h", 
-             src=os.path.join(self.source_folder, "src"),
-             dst=os.path.join(self.package_folder, "include"),
-             keep_path=True)
 
     def package_info(self):
         self.cpp_info.libs = ["gbnet"]
