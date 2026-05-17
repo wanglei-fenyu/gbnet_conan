@@ -10,7 +10,7 @@ class gbnetConan(ConanFile):
     author = "leo"
 
     description = "A simple C++ library for game network programming"
-    url = "https://github.com/yourusername/gbnet"
+    url = "https://github.com/wanglei-fenyu/gbnet_conan"
     license = "MIT"
 
     # 设置和选项
@@ -79,12 +79,6 @@ class gbnetConan(ConanFile):
              dst=os.path.join(self.package_folder, "include"),
              keep_path=True)
 
-    def source(self):
-        git = Git(self)
-        # 克隆仓库（使用 tag 或 commit）
-        git.clone(url="https://github.com/wanglei-fenyu/gbnet_conan.git", target=".")
-        git.checkout(f"v{self.version}")   # 假设 tag 是 v1.0.0 
-        
     def package_info(self):
         self.cpp_info.libs = ["gbnet"]
         self.cpp_info.includedirs = ["include"]
