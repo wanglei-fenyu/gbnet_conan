@@ -29,7 +29,7 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/yourusername/gbnet.git
+git clone https://github.com/wanglei-fenyu/gbnet_conan.git
 cd gbnet
 
 # 2. 创建 Conan 包
