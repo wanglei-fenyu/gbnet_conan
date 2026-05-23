@@ -5,6 +5,11 @@ if(CMAKE_TOOLCHAIN_FILE)
     include(${CMAKE_TOOLCHAIN_FILE})
 endif()
 
+if(DEFINED CONAN_CXX_FLAGS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CONAN_CXX_FLAGS}")
+endif()
+
+
 find_package(Boost REQUIRED)
 
 if(GBNET_WITH_SSL)
