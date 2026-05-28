@@ -96,46 +96,46 @@ private:
     int64_t                 _swapped_data_size;
     int64_t                 _swapped_buffer_size;
 
-    // Flow control
+    // 流量控制
     FlowControllerPtr _flow_controller;
     int64_t           _max_pending_buffer_size;
 
     /**
-     * If less than 0, it means no limit
+     * 小于0则表示没有限制
      */
     int32_t           _read_quota_token;
     int32_t           _write_quota_token;
 
     /**
-     * Temporary variables when sending messages
+     * 发送消息时的临时变量
      */
     ReadBufferPtr _sending_message;
-    int64_t       _sent_size;                // Size of currently sent message (already sent)
+    int64_t       _sent_size;                // 当前发送消息的大小（已发）
     const char*   _sending_data;
-    int           _sending_size;              // Size of current sending data
+    int           _sending_size;              // 当前发送数据的大小
    
-    // statistics
+    // 统计信息
     int64_t _total_sent_count;
     int64_t _total_sent_size;
     int64_t _total_received_count;
     int64_t _total_received_size;
 
     /**
-     * Temporary variables when receiving messages
+     * 接收消息时的临时变量
      */
     ReadBufferPtr _receiving_message;
-    int64_t       _received_message_size;   // Size of currently received message
+    int64_t       _received_message_size;   // 当前已接收的消息大小
     MessageHeader _receiving_header;
     int _received_header_size;  
-    bool _receiving_header_identified;        // Identification flag
+    bool _receiving_header_identified;        // 消息头识别标志
 
     
     /**
-     * Transfer buffer data
+     * 传输缓冲区数据
      */
     char* _tran_buf;
-    char* _receiving_data;   // Maintain pointer offset of _tran_buf
-    int64_t _receiving_size; // Maintain available space of _tran_buf
+    char* _receiving_data;   // 维护_tran_buf的偏移指针
+    int64_t _receiving_size; // 维护_tran_buf的可用空间大小
 
 
     static const int TOKEN_FREE = 0;

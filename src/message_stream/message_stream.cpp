@@ -141,7 +141,7 @@ void MessageStream::set_ssl_client_file_path(std::string& path)
 
 bool MessageStream::on_connected()
 {
-	// Reset receiving environment and allocate transfer buffer
+	// 重置接收环境并分配传输缓冲区
     reset_receiving_env();
 	if (!reset_tran_buf())
 	{
@@ -187,10 +187,10 @@ void MessageStream::on_read_some(const Error_code& error, size_t bytes_transferr
 
 	atomic_comp_swap(&_receive_token, TOKEN_FREE, TOKEN_LOCK);
 
-	// Continue to receive next message
+	// 继续接收下一条消息
 	try_start_receive();
 
-	// Notify received messages in order
+	// 逐条通知已接收的消息
 	while (!is_closed() && !received_message.empty())
 	{
         const ReceivedItem& item = received_message.front();
@@ -227,7 +227,7 @@ void MessageStream::on_write_some(const Error_code& error, size_t bytes_transfer
 		}
 		else
 		{
-			// Check if message is fully sent
+			// 检查消息是否全部发完
             NET_CHECK_EQ(_sent_size, _sending_message->ByteCount());
 			
 			on_sent(_sending_message);
@@ -236,14 +236,14 @@ void MessageStream::on_write_some(const Error_code& error, size_t bytes_transfer
 
 			try_start_send();
 
-			// For server, trigger receive after send completed to read next message
+			// 对于服务器，发送完成后触发接收以读取下一条消息
 			if (_net_type == NET_TYPE::NT_SERVER)
                 try_start_receive();
 		}
 	}
 	else
 	{
-		// Check if only part of data is sent
+		// 检查是否只发送了部分数据
 		NET_CHECK_LT(static_cast<int>(bytes_transferred), _sending_size);
 		_sending_data += bytes_transferred;
         _sending_size -= bytes_transferred;
@@ -307,21 +307,21 @@ bool MessageStream::try_start_receive()
     if (_receive_token == TOKEN_LOCK)
         return false;
 
-	// If quota token is already exhausted
+	// 如果读取配额令牌已经耗尽
 	if (_read_quota_token <= 0)
         return false;  
 	
 	if (_net_type == NET_TYPE::NT_SERVER && pending_buffer_size() > max_pending_buffer_size())
-        return false;		// Reject to prevent buffer overflow
+        return false;		// 拒绝接收以防止缓冲区溢出
 	
 	bool started = false;
 	if (is_connected() && atomic_comp_swap(&_receive_token, TOKEN_LOCK, TOKEN_FREE) == TOKEN_FREE)
 	{
         NET_CHECK(_receiving_data != nullptr);
         NET_CHECK(_receiving_size > 0);
-		if ((_read_quota_token = _flow_controller->acquire_read_quota(_receiving_size)) <= 0)	// Check if quota is available
+		if ((_read_quota_token = _flow_controller->acquire_read_quota(_receiving_size)) <= 0)	// 检查是否有读取配额
 		{
-			// No quota available, release lock
+			// 没有读取配额，释放令牌
             atomic_comp_swap(&_receive_token, TOKEN_FREE, TOKEN_LOCK);
 		}
 		else
@@ -377,10 +377,8 @@ bool MessageStream::try_start_send()
 		{
 
 			atomic_comp_swap(&_send_token, TOKEN_FREE, TOKEN_LOCK);
-			// Prevent race condition: if other thread adds messages after we release token,
-			// but before we check _pending_message_count, we need to retry.
-			// Because holding token prevents other threads from accessing, so if count is 0 now,
-			// it means we can safely exit.
+			// 防止竞态条件：如果其他线程在我们释放令牌后、检查_pending_message_count之前添加消息，
+			// 持有令牌会阻止其他线程访问，所以如果计数现在为0，我们可以安全退出。
             if (_pending_message_count == 0)
                 break;
 		}
@@ -402,14 +400,14 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
                 _receiving_header_identified = true;
 				if (consumed == size && _receiving_header.message_size > 0)
 				{
-					// Message is empty, only header
+					// 消息为空，只有消息头
                     return true;
 				}
 				else
 				{
-					// Offset past header, only meta and data remain
-                    data += consumed;   // Move pointer by consumed bytes
-                    size -= consumed;   // Reduce remaining data size
+					// 跳过消息头的大小，只处理元数据和数据
+                    data += consumed;   // 移动指针，跳过已读取的数据
+                    size -= consumed;   // 减少剩余数据大小
 				}
 			}
 			else if (identify_result == 0)
@@ -436,7 +434,7 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
             _receiving_message->Append(BufferHandle(_tran_buf, consume_size, data - _tran_buf));
 		}
         received_messages->push_back(ReceivedItem(_receiving_message, _receiving_header.meta_size, _receiving_header.data_size));
-        /* Process next message, reset receiving environment */
+        /* 处理下一条消息，重置接收环境 */
 		reset_receiving_env();
         data += consume_size;
         size -= consume_size;
@@ -447,20 +445,21 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
 
 
 /**
- * return 1  Header identified successfully, _receiving_header is filled
- * return 0  Incomplete data, no header identified, waiting for more data
- * return -1  Header parsing error
+ * 返回值：
+ * return 1  消息头识别成功，_receiving_header已填充
+ * return 0  数据不完整，未识别消息头，等待更多数据
+ * return -1 消息头解析错误
  */
 int MessageStream::identify_message_header(char* data, int size, int* consumed)
 {
     int header_size = static_cast<int>(sizeof(_receiving_header));
-    int copy_size   = std::min(size, header_size - _received_header_size);  // Copy some header bytes
+    int copy_size   = std::min(size, header_size - _received_header_size);  // 复制一些消息头字节
     memcpy(reinterpret_cast<char*>(&_receiving_header) + _received_header_size, data, copy_size);
 
 	_received_header_size += copy_size;
     *consumed = copy_size;
 
-	if (_received_header_size < header_size)	// Header not yet complete
+	if (_received_header_size < header_size)	// 消息头未完整
     {
 		return 0;
     }
@@ -500,7 +499,7 @@ bool MessageStream::reset_tran_buf()
 {
 	if (_tran_buf != nullptr)
 	{
-        TranBufPool::free(_tran_buf);   // Free old buffer and allocate new one
+        TranBufPool::free(_tran_buf);   // 释放旧缓冲区并分配新缓冲区
         _tran_buf = nullptr;
 	}
 	

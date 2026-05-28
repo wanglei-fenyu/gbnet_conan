@@ -3,20 +3,20 @@
 #include "../common/atomic.h"
 
 #ifndef TRAN_BUF_BLOCK_BASE_SIZE
-// base_block_size = 64B
+// 基础块大小 = 64B
 #define TRAN_BUF_BLOCK_BASE_SIZE (64u)
 #endif
 
 #ifndef TRAN_BUF_BLOCK_MAX_FACTOR
-// max_block_size = 64<<9 = 32K
+// 最���块大小 = 64<<9 = 32K
 #define TRAN_BUF_BLOCK_MAX_FACTOR (9u)
 #endif
 
 /// <summary>
-/// Thread-safe memory pool for transmission buffers
-/// Supports reference counting for copy-on-write semantics
-/// int and atomic<int> have same size
-/// Block layout: BlockSize(int*1) + RefCount(atomic<int>) + Data
+/// 线程安全的传输缓冲区内存池
+/// 支持引用计数用于写时复制语义
+/// int和atomic<int>大小相同
+/// 块布局：BlockSize(int*1) + RefCount(atomic<int>) + Data
 /// </summary>
 
 
@@ -32,11 +32,11 @@ public:
         void* p = ::malloc(TRAN_BUF_BLOCK_BASE_SIZE << factor);
         if (p != nullptr)
         {
-            *(reinterpret_cast<int*>(p)) = TRAN_BUF_BLOCK_BASE_SIZE << factor; // Store block size at the beginning
-            //*(reinterpret_cast<int*>(p) + 1) = 1;                                      // Initialize reference count to 1
+            *(reinterpret_cast<int*>(p)) = TRAN_BUF_BLOCK_BASE_SIZE << factor; // 在开头存储块大小
+            //*(reinterpret_cast<int*>(p) + 1) = 1;                                      // 初始化引用计数为1
             auto refCount = reinterpret_cast<std::atomic<int>*>(p) + 1;
             *refCount     = 1;
-            p             = reinterpret_cast<int*>(p) + 2; // Skip two int-sized fields, return data pointer
+            p             = reinterpret_cast<int*>(p) + 2; // 跳过两个int大小的字段，返回数据指针
         }
         return p;
     }
@@ -49,7 +49,7 @@ public:
 
     inline static int capacity(void* p)
     {
-        // Total size at block start - two int-sized metadata fields
+        // 块开头的总大小 - 两个int大小的元数据字段
         return *(reinterpret_cast<int*>(p) - 2) - sizeof(int) * 2;
     }
 
