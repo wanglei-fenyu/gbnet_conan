@@ -61,7 +61,7 @@ public:
 protected:
     virtual bool on_sending(const ReadBufferPtr& message) = 0;
     virtual void on_sent(const ReadBufferPtr& message) = 0;
-    virtual void on_send_failed(std::string_view peason,const ReadBufferPtr& message) = 0;
+    virtual void on_send_failed(std::string_view reason,const ReadBufferPtr& message) = 0;
     virtual void on_received(const ReadBufferPtr& message,int meta_size,int64_t data_size) = 0;
     virtual bool on_connected() override;
 
@@ -96,46 +96,46 @@ private:
     int64_t                 _swapped_data_size;
     int64_t                 _swapped_buffer_size;
 
-    //流量控制
+    // Flow control
     FlowControllerPtr _flow_controller;
     int64_t           _max_pending_buffer_size;
 
     /**
-     * 小于0 则表示没有限制
+     * If less than 0, it means no limit
      */
     int32_t           _read_quota_token;
     int32_t           _write_quota_token;
 
     /**
-     * 发消息时候的临时变量
+     * Temporary variables when sending messages
      */
     ReadBufferPtr _sending_message;
-    int64_t       _sent_size;                //当前发送消息的大小 (已发)
+    int64_t       _sent_size;                // Size of currently sent message (already sent)
     const char*   _sending_data;
-    int           _sending_size;              //当前发送数据的大小
+    int           _sending_size;              // Size of current sending data
    
-        // statistics
+    // statistics
     int64_t _total_sent_count;
     int64_t _total_sent_size;
     int64_t _total_received_count;
     int64_t _total_received_size;
 
     /**
-     * 接收消息时的临时变量
+     * Temporary variables when receiving messages
      */
     ReadBufferPtr _receiving_message;
-    int64_t       _received_message_size;   //当前已接收的消息大小
+    int64_t       _received_message_size;   // Size of currently received message
     MessageHeader _receiving_header;
     int _received_header_size;  
-    bool _receiving_header_identified;        //识别标志
+    bool _receiving_header_identified;        // Identification flag
 
     
     /**
-     * 数据
+     * Transfer buffer data
      */
     char* _tran_buf;
-    char* _receiving_data;   //维护 _tran_buf偏移的指针
-    int64_t _receiving_size; //维护 _tran_buf空间的大小
+    char* _receiving_data;   // Maintain pointer offset of _tran_buf
+    int64_t _receiving_size; // Maintain available space of _tran_buf
 
 
     static const int TOKEN_FREE = 0;
@@ -144,8 +144,6 @@ private:
     std::atomic<int> _receive_token;
 
 };
-
-
 
 
 

@@ -13,10 +13,10 @@
 #endif
 
 /// <summary>
-/// �̰߳�ȫ
-/// ���ü���ת���ء�
-/// int �� atomic<int>  ��С��ͬ
-/// Block = BlockSize��int�� + RefCount(atomic<int>) + Data
+/// Thread-safe memory pool for transmission buffers
+/// Supports reference counting for copy-on-write semantics
+/// int and atomic<int> have same size
+/// Block layout: BlockSize(int*1) + RefCount(atomic<int>) + Data
 /// </summary>
 
 
@@ -32,11 +32,11 @@ public:
         void* p = ::malloc(TRAN_BUF_BLOCK_BASE_SIZE << factor);
         if (p != nullptr)
         {
-            *(reinterpret_cast<int*>(p)) = TRAN_BUF_BLOCK_BASE_SIZE << factor; //�ڴ濪ͷ����ڴ��Ĵ�С   ������ڴ��һ��intλ
-            //*(reinterpret_cast<int*>(p) + 1) = 1;                                      //������������ü�����ʼ��Ϊ1  ������ڴ�ĵڶ���intλ
+            *(reinterpret_cast<int*>(p)) = TRAN_BUF_BLOCK_BASE_SIZE << factor; // Store block size at the beginning
+            //*(reinterpret_cast<int*>(p) + 1) = 1;                                      // Initialize reference count to 1
             auto refCount = reinterpret_cast<std::atomic<int>*>(p) + 1;
             *refCount     = 1;
-            p             = reinterpret_cast<int*>(p) + 2; //ǰ����intλ�ֱ� �ڴ�Ĵ�С�����ü���ռ��  ��������λ����ƫ������int��ʼ
+            p             = reinterpret_cast<int*>(p) + 2; // Skip two int-sized fields, return data pointer
         }
         return p;
     }
@@ -49,7 +49,7 @@ public:
 
     inline static int capacity(void* p)
     {
-        //�ڴ濪ͷ��ŵ����� - ��С�����ü���
+        // Total size at block start - two int-sized metadata fields
         return *(reinterpret_cast<int*>(p) - 2) - sizeof(int) * 2;
     }
 

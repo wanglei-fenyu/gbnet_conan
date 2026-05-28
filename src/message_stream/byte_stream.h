@@ -50,17 +50,17 @@ public:
     void reset_ticks(int64_t ticks, bool update_last_rw_ticks);
     int64_t last_rw_ticks();
 
-    void    set_connect_timeout(int64_t timeout /*����*/);
+    void    set_connect_timeout(int64_t timeout /* milliseconds */);
     int64_t connect_timeout();
 
     bool is_ssl_socket() { return false; }
 
 public:
-    virtual bool trigger_receive() = 0;         //���������� �����ɹ����� true
-    virtual bool trigger_send() = 0;            //����д���� �����ɹ����� true
+    virtual bool trigger_receive() = 0;         // Trigger receive, return true if successfully started
+    virtual bool trigger_send() = 0;            // Trigger send, return true if successfully started
     
-    void async_read_some(char* data, size_t size);           //������
-    void async_write_some(const char* data, size_t size);    //д����       
+    void async_read_some(char* data, size_t size);           // Read data
+    void async_write_some(const char* data, size_t size);    // Write data
 
     virtual bool on_connected() = 0;
 
@@ -89,7 +89,7 @@ protected:
 private:
     Asio::steady_timer _timer;
     Socket        _socket;
-    std::chrono::steady_clock::duration _connect_timeout;       //ʹ�ú���
+    std::chrono::steady_clock::duration _connect_timeout;       // Connection timeout duration
     std::atomic<NET_STSTUS>             _status;
 };
 

@@ -7,7 +7,6 @@ namespace gb
 
 
 
-
  MessageStream::MessageStream(NET_TYPE net_type, IoService& io_service, const Endpoint& endpoint) 
 	: MessageStreamBase(net_type,io_service,endpoint)
 	, _pending_message_count(0)
@@ -132,7 +131,7 @@ void MessageStream::set_ssl_client_file_path(std::string& path)
 //{
 //}
 //
-//void MessageStream::on_send_failed(std::string_view peason, const ReadBufferPtr& message)
+//void MessageStream::on_send_failed(std::string_view reason, const ReadBufferPtr& message)
 //{
 //}
 //
@@ -142,7 +141,7 @@ void MessageStream::set_ssl_client_file_path(std::string& path)
 
 bool MessageStream::on_connected()
 {
-	//���ý������ݻ���
+	// Reset receiving environment and allocate transfer buffer
     reset_receiving_env();
 	if (!reset_tran_buf())
 	{
@@ -188,10 +187,10 @@ void MessageStream::on_read_some(const Error_code& error, size_t bytes_transferr
 
 	atomic_comp_swap(&_receive_token, TOKEN_FREE, TOKEN_LOCK);
 
-	//����ȥ��
+	// Continue to receive next message
 	try_start_receive();
 
-	//�����ϲ㴦��
+	// Notify received messages in order
 	while (!is_closed() && !received_message.empty())
 	{
         const ReceivedItem& item = received_message.front();
@@ -228,7 +227,7 @@ void MessageStream::on_write_some(const Error_code& error, size_t bytes_transfer
 		}
 		else
 		{
-			//�����Ϣ�Ƿ�ȫ������
+			// Check if message is fully sent
             NET_CHECK_EQ(_sent_size, _sending_message->ByteCount());
 			
 			on_sent(_sending_message);
@@ -237,14 +236,14 @@ void MessageStream::on_write_some(const Error_code& error, size_t bytes_transfer
 
 			try_start_send();
 
-			//���ڷ��ͻ���������  ��ȡ�ᱻ����  ���Դ������ȡһ��Ҫ���Ѷ�����
+			// For server, trigger receive after send completed to read next message
 			if (_net_type == NET_TYPE::NT_SERVER)
                 try_start_receive();
 		}
 	}
 	else
 	{
-		//����Ƿ�ֻ����һ��������
+		// Check if only part of data is sent
 		NET_CHECK_LT(static_cast<int>(bytes_transferred), _sending_size);
 		_sending_data += bytes_transferred;
         _sending_size -= bytes_transferred;
@@ -308,21 +307,21 @@ bool MessageStream::try_start_receive()
     if (_receive_token == TOKEN_LOCK)
         return false;
 
-	//��һ���Ѿ��ﵽ����������
+	// If quota token is already exhausted
 	if (_read_quota_token <= 0)
         return false;  
 	
 	if (_net_type == NET_TYPE::NT_SERVER && pending_buffer_size() > max_pending_buffer_size())
-        return false;		//��ȥ�Ѹ÷��͵ķ���
+        return false;		// Reject to prevent buffer overflow
 	
 	bool started = false;
-	if (is_connected() && atomic_comp_swap(&_receive_token, TOKEN_LOCK, TOKEN_FREE) == TOKEN_FREE)  //֮ǰ��free ���ڸ���lock   �����ж�Ҳ����������
+	if (is_connected() && atomic_comp_swap(&_receive_token, TOKEN_LOCK, TOKEN_FREE) == TOKEN_FREE)
 	{
         NET_CHECK(_receiving_data != nullptr);
         NET_CHECK(_receiving_size > 0);
-		if ((_read_quota_token = _flow_controller->acquire_read_quota(_receiving_size)) <= 0)	//�жϵ�ǰ�Ƿ�������
+		if ((_read_quota_token = _flow_controller->acquire_read_quota(_receiving_size)) <= 0)	// Check if quota is available
 		{
-			//û�����Ͳ������� ����
+			// No quota available, release lock
             atomic_comp_swap(&_receive_token, TOKEN_FREE, TOKEN_LOCK);
 		}
 		else
@@ -378,9 +377,10 @@ bool MessageStream::try_start_send()
 		{
 
 			atomic_comp_swap(&_send_token, TOKEN_FREE, TOKEN_LOCK);
-			//��ֹ�����߳� ����������в�������
-			//��Ϊ����߳�ռ����token ����try_start_sendʧ��
-			//����Ҫ����� ��Ϣ�����Ƿ�Ϊ0  ��Ϊ0˵�� �������̲߳���������  ��Ҫ����ȡ���ݷ�������
+			// Prevent race condition: if other thread adds messages after we release token,
+			// but before we check _pending_message_count, we need to retry.
+			// Because holding token prevents other threads from accessing, so if count is 0 now,
+			// it means we can safely exit.
             if (_pending_message_count == 0)
                 break;
 		}
@@ -402,14 +402,14 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
                 _receiving_header_identified = true;
 				if (consumed == size && _receiving_header.message_size > 0)
 				{
-					//��Ϣ�ǿյ� ֻ��ͷ
+					// Message is empty, only header
                     return true;
 				}
 				else
 				{
-					//ƫ�Ƴ���Ϣͷ�Ĵ�С ֻ���meta������
-                    data += consumed;//����ָ����������Ѿ���ȡ�Ĵ�С
-                    size -= consumed;//����ʣ�����ݴ�С  
+					// Offset past header, only meta and data remain
+                    data += consumed;   // Move pointer by consumed bytes
+                    size -= consumed;   // Reduce remaining data size
 				}
 			}
 			else if (identify_result == 0)
@@ -436,7 +436,7 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
             _receiving_message->Append(BufferHandle(_tran_buf, consume_size, data - _tran_buf));
 		}
         received_messages->push_back(ReceivedItem(_receiving_message, _receiving_header.meta_size, _receiving_header.data_size));
-        /*����һ����Ϣ���������� ���ſ�ʼ��һ��*/
+        /* Process next message, reset receiving environment */
 		reset_receiving_env();
         data += consume_size;
         size -= consume_size;
@@ -447,20 +447,20 @@ bool MessageStream::split_and_process_message(char* data, int size, std::deque<R
 
 
 /**
- * return 1 ����ͷ����� _receiving_header��
- * return 0 �������ݲ�����û�б�ʶͷ �����ݸ��Ƶ� _receiving_header��
- * return -1 ��Ϣ���ж�
+ * return 1  Header identified successfully, _receiving_header is filled
+ * return 0  Incomplete data, no header identified, waiting for more data
+ * return -1  Header parsing error
  */
 int MessageStream::identify_message_header(char* data, int size, int* consumed)
 {
     int header_size = static_cast<int>(sizeof(_receiving_header));
-    int copy_size   = std::min(size, header_size - _received_header_size);  //������һЩͷ��Ϣ֮ǰ����һ��
+    int copy_size   = std::min(size, header_size - _received_header_size);  // Copy some header bytes
     memcpy(reinterpret_cast<char*>(&_receiving_header) + _received_header_size, data, copy_size);
 
 	_received_header_size += copy_size;
     *consumed = copy_size;
 
-	if (_received_header_size < header_size)	//��û��ɽ�����Ϣͷ
+	if (_received_header_size < header_size)	// Header not yet complete
     {
 		return 0;
     }
@@ -500,7 +500,7 @@ bool MessageStream::reset_tran_buf()
 {
 	if (_tran_buf != nullptr)
 	{
-        TranBufPool::free(_tran_buf);		//�ͷžɵ�buf  ����һ������
+        TranBufPool::free(_tran_buf);   // Free old buffer and allocate new one
         _tran_buf = nullptr;
 	}
 	
