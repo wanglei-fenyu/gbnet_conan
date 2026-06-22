@@ -43,7 +43,7 @@ class gbnetConan(ConanFile):
         if self.options.with_zlib:
             self.requires("zlib/1.3.1")
 
-        self.requires("protobuf/3.21.12")
+        self.requires("protobuf/5.27.0")
     
     def config_options(self):
         if self.settings.os == "Windows":
